@@ -33,98 +33,106 @@ Player::~Player() {
 /*
  * Simple heuristic which weights corners and edges highly
  */
- int Player::simpleScore(Move *yourMove, Side mover, Board *cop)
+ int Player::simpleScore(Side mover, Board *cop, Move* yourMove)
  {
-	 Side opp;
-	 double bonus = 1;
-	 if (yourMove->x == 0 || yourMove->x == 7)
+	 Side opp = getOppositeSide(mover);
+	 int numwins = 0;
+	 for (int i = 0; i < 25; i++)
 	 {
-		 bonus = bonus + 1;
-	 }
-	 if (yourMove -> y == 0 || yourMove->y == 7)
-	 {
-		 bonus = bonus + 1;
-     }
-     if ((yourMove->x == 1 && yourMove->y == 0) || (yourMove->x == 1 && yourMove->y == 0) )
-     {
-		 bonus = bonus - 1;
-	 }
-	 if ((yourMove->x == 1 && yourMove->y == 7) || (yourMove->x == 0 && yourMove->y == 6) )
-     {
-		 bonus = bonus - 1;
-	 }
-	 if ((yourMove->y == 1 && yourMove->x == 7) || (yourMove->y == 0 && yourMove->x == 6) )
-     {
-		 bonus = bonus - 1;
-	 }
-	 if ((yourMove->y == 6 && yourMove->x == 7) || (yourMove->y == 7 && yourMove->x == 6) )
-     {
-		 bonus = bonus - 1;
-	 }
-	 if ((yourMove->x == 6 && yourMove->y ==6) || (yourMove->x == 1 && yourMove->y ==1))
-	 {
-		 bonus = bonus - 2;
-	 }
-	 if ((yourMove->x == 1 && yourMove->y ==6) || (yourMove->x == 6 && yourMove->y ==6))
-	 {
-		 bonus = bonus - 2;
-	 }      
-	 if (mover == BLACK)
-     {
-		 opp = WHITE;
-	 }
-	 else
-	 {
-		 opp = BLACK;
-	 }
-	 int score = bonus + (cop->count(mover) - cop->count(opp));
-	 return score;
+		 Board* cop2 = cop->copy();
+		 Side currentPlayer = mover;
+		 while (! cop2->isDone())
+		 {
+			 vector <Move*> m = getPossibleMoves(cop2, currentPlayer);
+			 int n = m.size();
+			 if (n == 0)
+			 {
+				 currentPlayer = getOppositeSide(currentPlayer);
+				 continue;
+			 }
+			 int index = rand() % n;
+			 cop2->doMove(m[index], currentPlayer);
+			 currentPlayer = getOppositeSide(currentPlayer);
+			 deleteMoves(m);
+		}
+		if (cop2->count(mover) - cop2->count(opp) > 0)
+		{
+			numwins++;
+		}
+		delete cop2;
+	}
+	return numwins;
 }
 
-/*
- * A more advanced miniMax that uses the hueristicFunction
- */
- int Player::miniMaxScore2(Move *yourMove, Side mover)
- {
-	 Side opp;
-	 if (mover == BLACK)
-     {
-		 opp = WHITE;
-	 }
-	 else
-	 {
-		 opp = BLACK;
-	 }
-	 Board *cop1 = b->copy();
-	 cop1->doMove(yourMove, mover);
-	 int minscore = cop1->count(mover) - cop1->count(opp);
-	 for (int i = 0; i < 8; i++)
-	 {
-		 for (int j = 0; j < 8; j++)
-		 {
-			Board* cop = cop1->copy();
-			Move *cand = new Move(i,j);
-			if (cop->checkMove(cand, opp))
-			{
-				int tempscore = simpleScore(cand,opp,cop);
-				if (tempscore < minscore)
-				{
-					minscore = tempscore;
-				}
-			}
-			delete cand;
+int Player::alphaBetaPruning(int depth, Board* node, int alpha, int beta, Side side, Move* move)
+{
+	Side opp = getOppositeSide(side);
+	if (depth == 0)
+	{
+		int score = simpleScore(side, node, move);
+		delete node;
+		return score;
+	}
+	vector<Move* > m = getPossibleMoves(node, side);
+	for (unsigned int i = 0; i < m.size(); i++)
+	{
+		Board* child = node->copy();
+		child->doMove(m[i], side);
+		int score = -1*alphaBetaPruning(depth -1, child, -beta, -alpha, opp, m[i]);
+		if (score > alpha)
+		{
+			alpha = score;
+		}
+		if (alpha >= beta)
+		{
+			break;
 		}
 	}
-	return minscore;
+	if (m.empty())
+	{
+		Board* child = node->copy();
+		int score = -1*alphaBetaPruning(depth -1, child, -beta, -alpha, opp, NULL);
+		if (score > alpha)
+		{
+			alpha = score;
+		}
+	}
+	deleteMoves(m);
+	delete node;
+	return alpha;
+}
+void Player::deleteMoves(vector <Move*> m)
+{
+	for (unsigned int i = 0; i < m.size(); i++)
+	{
+		delete m[i];
+	}
+}
+vector<Move*> Player::getPossibleMoves(Board* node, Side side)
+{
+	vector <Move*> m;
+	for (int i = 0; i < 8; i++) 
+	{
+		for (int j = 0; j < 8; j++) 
+		{
+			Move *move = new Move(i, j);
+			if (node->checkMove(move, side))
+			{
+				m.push_back(move);
+			}
+			else
+			{
+				delete move;
+			}
+		}
+	}
+	return m;
 }
 
-/*
- * Checks heuristic two moves in the future
- */
- int Player::miniMaxScore(Move *yourMove, Side mover)
- {
-	 Side opp;
-	 if (mover == BLACK)
+Side Player::getOppositeSide(Side side)
+{
+	Side opp;
+	if (side == BLACK)
      {
 		 opp = WHITE;
 	 }
@@ -132,31 +140,9 @@ Player::~Player() {
 	 {
 		 opp = BLACK;
 	 }
-	 Board *cop1 = b->copy();
-	 cop1->doMove(yourMove, mover);
-	 int minscore = cop1->count(mover) - cop1->count(opp);
-	 for (int i = 0; i < 8; i++)
-	 {
-		 for (int j = 0; j < 8; j++)
-		 {
-			Board* cop = cop1->copy();
-			Move *cand = new Move(i,j);
-			if (cop->checkMove(cand, opp))
-			{
-				cop ->doMove(cand, opp);
-				int tempscore = cop->count(mover) - cop->count(opp);
-				if (tempscore < minscore)
-				{
-					minscore = tempscore;
-				}
-			}
-			delete cand;
-		}
-	}
-	return minscore;
+	 return opp;
 }
- 
- 
+
 /*
  * Compute the next move given the opponent's last move. Your AI is
  * expected to keep track of the board on its own. If this is the first move,
@@ -174,48 +160,30 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
      * TODO: Implement how moves your AI should play here. You should first
      * process the opponent's opponents move before calculating your own move
      */ 
-     int maxscore = -65;
-     Move *maxmove = NULL;
-     Side opp;
-     if (s == BLACK)
-     {
-		 opp = WHITE;
-	 }
-	 else
-	 {
-		 opp = BLACK;
-	 } 
-     b->doMove(opponentsMove, opp);
+     Side opp = getOppositeSide(s);
+     b->doMove(opponentsMove,opp);
      if (! b->hasMoves(s))
      {
 		 return NULL;
 	 }
-     for (int i = 0; i < 8; i++) 
-     {
-        for (int j = 0; j < 8; j++) 
-        {
-            Move *move = new Move(i, j);
-            if (b->checkMove(move, s))
-            {
-				int tempscore;
-				if (testingMinimax)
-				{
-					tempscore = miniMaxScore(move, s);
-				}
-				else
-				{
-					tempscore = miniMaxScore2(move, s);
-				}
-				if (tempscore > maxscore)
-				{
-					delete maxmove;
-					maxscore = tempscore;
-					maxmove = new Move(i,j);
-				}
-			}
-			delete move;
-        }
-    }
-    b->doMove(maxmove, s);
-    return maxmove;
+	 vector<Move*> m = getPossibleMoves(b,s);
+	 unsigned int maxindex = 0;
+	 int alpha = -100;
+	 int beta = 100;
+	 for (unsigned int i = 0; i < m.size(); i++)
+	 {
+		 Board* node = b->copy();
+		 node->doMove(m[i], s);
+		 int score = -1*alphaBetaPruning(3, node, -beta, -alpha, opp, m[i]);
+		 if (score > alpha)
+		 {
+			 alpha = score;
+			 maxindex = i;
+		 }
+	 }
+	 b->doMove(m[maxindex],s);
+	 Move* maxmove = m[maxindex];
+	 Move* selectedMove = new Move(maxmove->x, maxmove->y);
+	 deleteMoves(m);
+	 return selectedMove;
 }

@@ -13,6 +13,9 @@ testgame: testgame.o
 
 testminimax: $(OBJS) testminimax.o
 	$(CC) -o $@ $^
+	
+testsuite: $(OBJS) testsuite.o
+	$(CC) -o $@ $^
 
 %.o: %.cpp
 	$(CC) -c $(CFLAGS) -x c++ $< -o $@
@@ -24,6 +27,6 @@ cleanjava:
 	make -C java/ clean
 
 clean:
-	rm -f *.o $(PLAYERNAME) testgame testminimax
+	rm -f *.o $(PLAYERNAME) testgame testminimax testsuite
 	
 .PHONY: java testminimax

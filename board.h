@@ -11,11 +11,7 @@ private:
     bitset<64> black;
     bitset<64> taken;    
        
-    bool occupied(int x, int y);
-    bool get(Side side, int x, int y);
-    void set(Side side, int x, int y);
-    bool onBoard(int x, int y);
-      
+    void set(Side side, int x, int y);      
 public:
     Board();
     ~Board();
@@ -28,6 +24,12 @@ public:
     int count(Side side);
     int countBlack();
     int countWhite();
+    
+    bool occupied(int x, int y);
+    bool get(Side side, int x, int y);
+    bool onBoard(int x, int y);
+
+
 
     void setBoard(char data[]);
 };
